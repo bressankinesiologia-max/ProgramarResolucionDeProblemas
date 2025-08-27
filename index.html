@@ -1,0 +1,609 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Resolución de Problemas</title>
+  <style>
+    /* --------- Reset y base --------- */
+    *, *::before, *::after { box-sizing: border-box; }
+    html, body { margin: 0; padding: 0; }
+    body {
+      font-family: 'Segoe UI', system-ui, -apple-system, Arial, sans-serif;
+      background: linear-gradient(135deg, #fbeaff, #dff6ff, #fff4e6);
+      min-height: 100vh;                 /* Permite que el body haga scroll si hace falta */
+      padding: 16px;                     /* Respira en bordes */
+    }
+
+    /* --------- Caja principal --------- */
+    .container {
+      background: #fff;
+      color: #444;
+      max-width: 760px;
+      width: 100%;
+      margin: 0 auto;
+      padding: 24px;
+      border-radius: 20px;
+      box-shadow: 0 8px 20px rgba(0,0,0,0.1);
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+
+    h1 {
+      font-family: Georgia, 'Times New Roman', serif;
+      font-size: clamp(1.4rem, 2.2vw, 1.9rem);
+      margin: 0 0 4px 0;
+      color: #3f3f3f;
+      text-align: center;
+    }
+
+    p { margin: 0 0 12px 0; color: #555; line-height: 1.5; }
+
+    /* --------- Campos --------- */
+    input[type="text"],
+    input[type="number"],
+    textarea,
+    select {
+      width: 100%;
+      padding: 12px 14px;
+      border: 1px solid #d9d9d9;
+      border-radius: 12px;
+      font-size: 1rem;
+      outline: none;
+    }
+    textarea { min-height: 120px; resize: vertical; }
+
+    .checkbox-group {
+      text-align: left;
+      max-width: 520px;
+      margin: 0 auto;
+    }
+    .checkbox-group label {
+      display: block;
+      margin: 8px 0;
+      cursor: pointer;
+    }
+
+    /* --------- Navegación --------- */
+    .navigation {
+      display: flex;
+      gap: 12px;
+      flex-wrap: wrap;
+      justify-content: space-between;
+      margin-top: 4px;
+    }
+    .navigation button {
+      flex: 1 1 160px;
+      background: #7c5cff;
+      border: none;
+      color: white;
+      padding: 12px 18px;
+      border-radius: 12px;
+      cursor: pointer;
+      font-size: 1rem;
+      transition: background .2s ease, transform .05s ease;
+    }
+    .navigation button:hover { background: #5a3fd4; }
+    .navigation button:active { transform: translateY(1px); }
+    .navigation button:disabled { background: #cfcfcf; cursor: not-allowed; }
+
+    /* --------- Lista de causas --------- */
+    .cause-wrap { text-align: left; }
+    .hint { font-size: .95rem; opacity: .85; margin-bottom: 8px; }
+    .cause-item {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 10px 12px;
+      border: 1px solid #e6e6e6;
+      border-radius: 10px;
+      margin: 6px 0;
+      background: #fafafa;
+    }
+    .cause-item button {
+      background: #ff4d4f;
+      border: none;
+      color: #fff;
+      padding: 6px 10px;
+      border-radius: 8px;
+      font-size: .9rem;
+      cursor: pointer;
+    }
+    .saved-badge {
+      display: inline-block;
+      font-size: .9rem;
+      padding: 6px 10px;
+      border-radius: 999px;
+      background: #e6ffed;
+      color: #197a30;
+      border: 1px solid #bbf0c7;
+      margin-top: 8px;
+    }
+
+    /* --------- Responsive --------- */
+    @media (max-width: 600px) {
+      .container { padding: 18px; }
+      .checkbox-group { max-width: 100%; }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1 id="title">Cuéntame tu problema</h1>
+    <div id="content"></div>
+
+    <div class="navigation">
+      <button id="prevBtn" disabled>⬅️ Atrás</button>
+      <button id="nextBtn">Siguiente ➡️</button>
+    </div>
+  </div>
+
+  <script>
+    /* ======================
+       Datos base
+    ====================== */
+    const topics = [
+      "Mecánico", "De Salud", "Jardinería", "Económico", "Mantenimiento del hogar",
+      "Social", "Tecnología", "Educativo", "Legal", "Alimentación", "Transporte", "Otro"
+    ];
+
+const questions = {
+  "Mecánico": [
+    {q:"¿Qué función cumple la batería en un auto?", a:"Proveer energía eléctrica", o:["Almacenar combustible","Regular la presión de los frenos"]},
+    {q:"¿Qué parte convierte energía mecánica en eléctrica?", a:"Alternador", o:["Carburador","Radiador"]},
+    {q:"¿Qué líquido se revisa para evitar que el motor se recaliente?", a:"Refrigerante", o:["Aceite","Líquido de frenos"]},
+    {q:"¿Qué mide el tacómetro?", a:"Revoluciones del motor", o:["Velocidad del vehículo","Temperatura"]},
+    {q:"Si se rompe la correa de distribución:", a:"Puede dañar válvulas y pistones", o:["El auto arranca más rápido","No afecta nada"]},
+    {q:"¿Qué componente limpia el aire que entra al motor?", a:"Filtro de aire", o:["Filtro de aceite","Filtro de combustible"]},
+    {q:"¿Qué significa ABS?", a:"Sistema de frenos antibloqueo", o:["Aire forzado","Asistencia básica de seguridad"]},
+    {q:"Si falla el alternador:", a:"La batería no se recarga", o:["El motor deja de girar","Se pierden los frenos"]},
+    {q:"¿Qué pieza transmite fuerza del motor a las ruedas?", a:"Caja de cambios", o:["Bujía","Radiador"]}
+  ],
+  "De Salud": [
+    {q:"¿Qué es la hipertensión?", a:"Presión arterial elevada", o:["Presión arterial baja","Frecuencia cardíaca alta"]},
+    {q:"¿Qué vitamina se produce con la exposición al sol?", a:"Vitamina D", o:["Vitamina C","Vitamina B12"]},
+    {q:"El IMC sirve para:", a:"Evaluar el estado nutricional", o:["Medir la presión arterial","Diagnosticar diabetes"]},
+    {q:"¿Cuál es un síntoma de anemia?", a:"Cansancio extremo", o:["Dolor de cabeza","Aumento de apetito"]},
+    {q:"La glucosa alta indica:", a:"Posible diabetes", o:["Hipoglucemia","Hidratación insuficiente"]},
+    {q:"Para prevenir infecciones:", a:"Lavarse las manos frecuentemente", o:["Evitar dormir","Beber mucho café"]},
+    {q:"La fiebre es:", a:"Elevación de la temperatura corporal", o:["Baja de la presión","Dolor en músculos"]},
+    {q:"Un colesterol alto puede afectar:", a:"Corazón y arterias", o:["Riñones","Hígado exclusivamente"]},
+    {q:"¿Qué significa ECG?", a:"Electrocardiograma", o:["Ecografía cardíaca","Examen de glucosa"]}
+  ],
+  "Jardinería": [
+    {q:"¿Qué planta necesita poca agua?", a:"Suculenta", o:["Rosa","Tomate"]},
+    {q:"¿Qué es el compost?", a:"Abono orgánico", o:["Tipo de flor","Plaga vegetal"]},
+    {q:"La fotosíntesis ocurre en:", a:"Hojas", o:["Raíces","Tallos"]},
+    {q:"¿Cuál es una herramienta de jardinería?", a:"Tijeras de podar", o:["Destornillador","Martillo"]},
+    {q:"¿Qué se poda en primavera?", a:"Ramas secas", o:["Semillas","Hierba alta"]},
+    {q:"El riego por goteo sirve para:", a:"Ahorrar agua", o:["Aumentar humedad","Cortar plantas"]},
+    {q:"El pH del suelo se mide para:", a:"Saber acidez o alcalinidad", o:["Medir temperatura","Medir luz"]},
+    {q:"¿Qué es mulch?", a:"Capa de protección sobre la tierra", o:["Fertilizante líquido","Plaga"]},
+    {q:"Una planta perenne:", a:"Vive varios años", o:["Vive un año","No florece nunca"]}
+  ],
+  "Económico": [
+    {q:"¿Qué es inflación?", a:"Aumento general de precios", o:["Reducción de salarios","Aumento de impuestos"]},
+    {q:"El PIB mide:", a:"Producción de un país", o:["Población total","Reservas bancarias"]},
+    {q:"Un préstamo tiene:", a:"Intereses", o:["Descuento","Salario extra"]},
+    {q:"Diversificar inversiones sirve para:", a:"Reducir riesgos", o:["Aumentar deudas","Evitar impuestos"]},
+    {q:"Mercado de acciones:", a:"Compra y venta de acciones", o:["Préstamos bancarios","Mercado de divisas"]},
+    {q:"¿Qué es liquidez?", a:"Facilidad de convertir en efectivo", o:["Cantidad de bienes","Número de empleados"]},
+    {q:"Deflación es:", a:"Bajada general de precios", o:["Aumento de impuestos","Incremento salarial"]},
+    {q:"¿Qué es un presupuesto?", a:"Plan de gastos e ingresos", o:["Balance bancario","Renta fija"]},
+    {q:"Tasa de interés:", a:"Costo de pedir dinero prestado", o:["Precio de acciones","Valor del dólar"]}
+  ],
+  "Mantenimiento del hogar": [
+    {q:"Para destapar un caño puedes usar:", a:"Desatascador", o:["Aspiradora","Martillo"]},
+    {q:"La pintura al agua se limpia con:", a:"Agua", o:["Aceite","Alcohol"]},
+    {q:"¿Qué evita la humedad en paredes?", a:"Impermeabilizante", o:["Cloro","Arena"]},
+    {q:"El cableado eléctrico debe ser revisado por:", a:"Electricista", o:["Plomero","Carpintero"]},
+    {q:"¿Qué se usa para lijar madera?", a:"Lija", o:["Sierra","Martillo"]},
+    {q:"Un extintor sirve para:", a:"Apagar fuego", o:["Regar plantas","Limpiar chimenea"]},
+    {q:"¿Qué material aísla el sonido?", a:"Espuma acústica", o:["Tela","Madera"]},
+    {q:"¿Qué evita la corrosión metálica?", a:"Pintura anticorrosiva", o:["Aceite","Agua"]},
+    {q:"¿Qué herramienta aprieta tornillos?", a:"Destornillador", o:["Martillo","Llave inglesa"]}
+  ],
+  "Social": [
+    {q:"¿Qué es la empatía?", a:"Ponerse en el lugar del otro", o:["Dar órdenes","Ignorar emociones"]},
+    {q:"¿Qué es la comunicación asertiva?", a:"Expresar opiniones con respeto", o:["Gritar","Callar"]},
+    {q:"Redes sociales sirven para:", a:"Conectar personas", o:["Aislar","Vender solo productos"]},
+    {q:"Un líder democrático:", a:"Consulta al grupo antes de decidir", o:["Decide solo","Evita decisiones"]},
+    {q:"Conflictos se resuelven mejor con:", a:"Diálogo", o:["Violencia","Indiferencia"]},
+    {q:"Trabajo en equipo requiere:", a:"Colaboración", o:["Competencia","Desinterés"]},
+    {q:"Normas sociales:", a:"Regulan convivencia", o:["Generan caos","Son opcionales"]},
+    {q:"Feedback constructivo sirve para:", a:"Mejorar desempeño", o:["Criticar sin soluciones","Ignorar"]},
+    {q:"Tolerancia es:", a:"Aceptar diferencias", o:["Imponer ideas","Rechazar"]},
+  ],
+  "Tecnología": [
+    {q:"¿Qué significa CPU?", a:"Unidad Central de Procesamiento", o:["Unidad de Potencia","Memoria principal"]},
+    {q:"¿Qué es RAM?", a:"Memoria de acceso aleatorio", o:["Memoria fija","Almacenamiento óptico"]},
+    {q:"¿Qué protocolo se usa para páginas web?", a:"HTTP/HTTPS", o:["FTP","SMTP"]},
+    {q:"¿Qué hace un router?", a:"Conecta redes distintas", o:["Almacena archivos","Procesa datos"]},
+    {q:"¿Qué significa HTML?", a:"Lenguaje de marcado de hipertexto", o:["Lenguaje de programación","Base de datos"]},
+    {q:"¿Qué SO es de código abierto?", a:"Linux", o:["Windows","macOS"]},
+    {q:"¿Qué es la nube informática?", a:"Servicios remotos en Internet", o:["App de clima","Red local"]},
+    {q:"¿Puerto por defecto de HTTP?", a:"80", o:["21","25"]},
+    {q:"¿Qué es un algoritmo?", a:"Secuencia de pasos para resolver un problema", o:["Un programa","Un archivo"]}
+  ],
+  "Educativo": [
+    {q:"¿Qué es aprendizaje activo?", a:"Participación consciente del estudiante", o:["Escuchar pasivamente","Tomar apuntes sin pensar"]},
+    {q:"La evaluación formativa sirve para:", a:"Mejorar el aprendizaje", o:["Calificar sin enseñar","Ignorar progreso"]},
+    {q:"Aprender jugando se llama:", a:"Gamificación", o:["Memorización","Disciplina estricta"]},
+    {q:"¿Qué es la lectura crítica?", a:"Analizar y reflexionar sobre textos", o:["Leer sin entender","Resumir sin pensar"]},
+    {q:"Planificación educativa:", a:"Organizar objetivos y actividades", o:["Improvisar","Ignorar recursos"]},
+    {q:"Método Montessori se centra en:", a:"Autonomía del estudiante", o:["Memorización","Competencia"]},
+    {q:"Aprendizaje colaborativo requiere:", a:"Trabajo en equipo", o:["Individualismo","Competencia"]},
+    {q:"¿Qué es educación inclusiva?", a:"Igualdad de oportunidades", o:["Separación de estudiantes","Prioridad a unos"]},
+    {q:"Evaluación diagnóstica identifica:", a:"Fortalezas y debilidades", o:["Castigos","Desmotivación"]}
+  ],
+  "Legal": [
+    {q:"¿Qué es un contrato?", a:"Acuerdo legal entre partes", o:["Una carta","Un presupuesto"]},
+    {q:"Propiedad intelectual protege:", a:"Ideas y creaciones", o:["Terrenos","Maquinaria"]},
+    {q:"Un delito se denuncia en:", a:"Fiscalía", o:["Hospital","Escuela"]},
+    {q:"Ley de tránsito regula:", a:"Seguridad vial", o:["Tráfico aéreo","Consumo de alimentos"]},
+    {q:"Derechos humanos garantizan:", a:"Libertad y dignidad", o:["Solo obligaciones","Solo trabajo"]},
+    {q:"Un juez toma decisiones en:", a:"Juicio", o:["Colegios","Mercados"]},
+    {q:"Un contrato laboral regula:", a:"Relación empleador-empleado", o:["Relación de amigos","Propiedad"]},
+    {q:"La prescripción legal indica:", a:"Caducidad de derechos", o:["Inicio de contrato","Garantías"]},
+    {q:"¿Qué es tutela?", a:"Protección legal de derechos fundamentales", o:["Un seguro","Una multa"]}
+  ],
+  "Alimentación": [
+    {q:"¿Qué es una dieta balanceada?", a:"Alimentos variados y proporciones correctas", o:["Solo proteínas","Solo carbohidratos"]},
+    {q:"Vitaminas esenciales:", a:"A, B, C, D y E", o:["F, G, H","X, Y, Z"]},
+    {q:"El exceso de azúcar puede causar:", a:"Diabetes y caries", o:["Mejora digestión","Fiebre"]},
+    {q:"Hidratación diaria recomendada:", a:"2 litros de agua aprox.", o:["500 ml","5 litros"]},
+    {q:"Proteínas se encuentran en:", a:"Carnes, huevos, legumbres", o:["Pan y galletas","Frutas"]},
+    {q:"Fibra ayuda a:", a:"Regular intestinos", o:["Dormir mejor","Subir peso"]},
+    {q:"Minerales importantes:", a:"Calcio, hierro, potasio", o:["Plomo, mercurio, cadmio","Cloro, flúor, bromo"]},
+    {q:"Evitar grasas trans ayuda a:", a:"Corazón saludable", o:["Hígado fuerte","Aumentar peso"]},
+    {q:"Antioxidantes se encuentran en:", a:"Frutas y verduras", o:["Azúcar","Sal"]}
+  ],
+  "Transporte": [
+    {q:"¿Qué es transporte público?", a:"Servicio colectivo de movilidad", o:["Vehículo privado","Transporte ilegal"]},
+    {q:"Licencia de conducir se obtiene:", a:"Tras aprobar examen oficial", o:["Por edad","Por inscripción en colegio"]},
+    {q:"Semáforo rojo indica:", a:"Detenerse", o:["Avanzar","Ceder paso"]},
+    {q:"Semáforo verde indica:", a:"Avanzar", o:["Detenerse","Reducir velocidad"]},
+    {q:"¿Qué combustible usa un auto eléctrico?", a:"Electricidad", o:["Gasolina","Diésel"]},
+    {q:"Señal de pare indica:", a:"Detenerse completamente", o:["Seguir","Reducir velocidad"]},
+    {q:"Transporte ferroviario usa:", a:"Rieles", o:["Caminos","Aeropuertos"]},
+    {q:"Autobús articulado:", a:"Mayor capacidad de pasajeros", o:["Menor capacidad","No transporta personas"]},
+    {q:"Carga peligrosa requiere:", a:"Señalización especial", o:["No señalización","Velocidad alta"]}
+  ],
+  "Otro": [
+    {q:"¿Cómo describirías tu área de conocimiento?", a:"Explicando con claridad", o:["Solo nombrando","Ignorando detalles"]},
+    {q:"¿Qué tan seguro te sientes evaluando el tema?", a:"Con conocimiento suficiente", o:["Sin idea","Aleatoriamente"]},
+    {q:"¿Qué recursos usarías para investigar?", a:"Libros, internet o expertos", o:["Nada","Solo opiniones"]},
+    {q:"¿Qué habilidad es clave?", a:"Razonamiento lógico", o:["Memoria sin comprensión","Repetición mecánica"]},
+    {q:"¿Cómo organizas la información?", a:"De forma estructurada", o:["Al azar","Sin orden"]},
+    {q:"¿Cómo verificas la información?", a:"Comparando fuentes confiables", o:["Por intuición","Ignorando"]},
+    {q:"¿Qué haces si hay dudas?", a:"Consulto expertos o investigo más", o:["Dejo pasar","Supongo cualquier cosa"]},
+    {q:"¿Qué herramienta usarías?", a:"Software especializado o notas", o:["Nada","Cualquier cosa"]},
+    {q:"¿Qué criterio usas para concluir?", a:"Basado en evidencia", o:["Opinión propia","Sin evidencia"]}
+  ]
+};
+
+
+    /* Estado */
+    let currentStep = 0;
+    let userData = {
+      problem: "",
+      topic: "",
+      customTopic: "",
+      knowledge: "",
+      score: 0,
+      causes: [],
+      otherTopicsSaved: []   // para guardar lo que pongan en "Otro"
+    };
+
+    /* ======================
+       Definición de pasos 
+    ====================== */
+    const steps = [
+      {
+        // Paso 0
+        title: "Cuéntame tu problema",
+        render: () => `
+          <textarea id="problemInput" placeholder="Escribe aquí lo que te pasó..."></textarea>
+        `
+      },
+      {
+        // Paso 1
+        title: "Relee tu problema con mucha atención",
+        render: (d) => `<p>${d.problem}</p>`
+      },
+      {
+        // Paso 2
+        title: "En base a esto, tu problema es de tipo (elige una sola opción):",
+        render: () => `
+          <div class="checkbox-group">
+            ${topics.map(t => `
+              <label><input type="radio" name="topic" value="${t}"> ${t}</label>
+            `).join("")}
+            <div id="customTopicDiv" style="display:none; margin-top:8px;">
+              <input type="text" id="customTopicInput" placeholder="Especifica el tópico" />
+            </div>
+          </div>
+        `
+      },
+      {
+        // Paso 3 - Evaluación
+        title: "Vamos a evaluar tu conocimiento",
+        render: (d) => {
+          if (d.topic === "De Salud") {
+            return `
+              <p>¿Posee usted un título en medicina?</p>
+              <label><input type="radio" name="med" value="Si"> Sí</label>
+              <label><input type="radio" name="med" value="No"> No</label>
+            `;
+          }
+          if (d.topic === "Otro") {
+            return `
+              <p>¿Cree usted tener los conocimientos necesarios para analizar un problema de este tipo?</p>
+              <label><input type="radio" name="otro" value="Si"> Sí</label>
+              <label><input type="radio" name="otro" value="No"> No</label>
+            `;
+          }
+          const qs = questions[d.topic] || [];
+          if (!qs.length) return `<p>No hay preguntas para este tópico.</p>`;
+
+          // Mezcla las opciones solo la primera vez que se renderiza este paso
+          if (!shuffledOptions[d.topic]) {
+            shuffledOptions[d.topic] = qs.map(q => {
+              const opts = shuffle([q.a, ...q.o]);
+              return opts;
+            });
+          }
+
+          return qs.map((q, i) => {
+            const opts = shuffledOptions[d.topic][i];
+            return `
+              <p>${q.q}</p>
+              ${opts.map(opt => `
+                <label><input type="radio" name="q${i}" value="${opt}"> ${opt}</label>
+              `).join("")}
+            `;
+          }).join("");
+        }
+      },
+      {
+        // Paso 4 - Resultado de evaluación
+        title: "Resultado de tu evaluación",
+        render: (d) => `
+          <p>${d.knowledge}</p>
+          ${typeof d.score === 'number' && (d.topic !== "De Salud" && d.topic !== "Otro")
+            ? `<p>Puntaje: <strong>${d.score}/9</strong></p>`
+            : ``}
+        `
+      },
+      {
+        // Paso 5 - Edición
+        title: "Revisemos de nuevo el problema",
+        render: (d) => `
+          <p class="hint">Si crees que te faltó agregar algún detalle este es el momento. Edita tu texto abajo si lo necesitas.</p>
+          <textarea id="problemEdit">${d.problem}</textarea>
+        `
+      },
+      {
+        // Paso 6 - Lectura final
+        title: "Perfecto, ya casi terminamos",
+        render: (d) => `
+          <p>Aunque parezca repetitivo vamos a leer una última vez lo que describiste. El objetivo de este software es hacerte pensar y repensar la situación para no dejar ningún detalle antes de aventurar conclusiones sobre las posibles causas.</p>
+          <p style="margin-top:8px;"><strong>Tu descripción:</strong></p>
+          <p>${d.problem}</p>
+        `
+      },
+      {
+        // Paso 7 - Causas
+        title: "Ahora pensemos en las causas...",
+        render: () => `
+          <div class="cause-wrap">
+            <p>Escribe cada causa por separado. Presiona <strong>Enter</strong> para guardarla. Al finalizar, usa "Siguiente".</p>
+            <input type="text" id="causeInput" placeholder="Escribe una causa y presiona Enter" />
+            <div id="savedBadge" style="display:none;" class="saved-badge">Causa agregada ✓</div>
+            <div id="causeList" style="margin-top:10px;"></div>
+          </div>
+        `
+      },
+      {
+        // Paso 8 - Lista final
+        title: "Aquí están las posibles causas",
+        render: (d) => `
+          <p>Comprueba si son las causas reales y ve eliminando las que no correspondan</p>
+          ${
+            d.causes.length
+              ? d.causes.map((c,i) => `
+                  <div class="cause-item">
+                    <span>${c}</span>
+                    <button onclick="deleteCause(${i})" aria-label="Eliminar causa ${i+1}">🗑</button>
+                  </div>
+                `).join("")
+              : "<p>No ingresaste causas.</p>"
+          }
+        `
+      }
+    ];
+
+    // Añade esta función para mezclar arrays
+function shuffle(array) {
+  for (let i = array.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [array[i], array[j]] = [array[j], array[i]];
+  }
+  return array;
+}
+
+// Guarda las opciones mezcladas para cada paso de preguntas
+let shuffledOptions = {};
+
+    /* ======================
+       Render y navegación
+    ====================== */
+    const titleEl = document.getElementById("title");
+    const contentEl = document.getElementById("content");
+    const prevBtn = document.getElementById("prevBtn");
+    const nextBtn = document.getElementById("nextBtn");
+
+    function renderStep() {
+      const step = steps[currentStep];
+      titleEl.textContent = step.title;
+      contentEl.innerHTML = step.render(userData);
+
+      prevBtn.disabled = currentStep === 0;
+      nextBtn.textContent = currentStep === steps.length - 1 ? "Finalizar" : "Siguiente ➡️";
+
+      // Eventos específicos por paso
+      if (currentStep === 2) {
+        // Toggle de "Otro"
+        document.querySelectorAll('input[name="topic"]').forEach(radio => {
+          radio.addEventListener("change", (e) => {
+            const show = e.target.value === "Otro";
+            const customDiv = document.getElementById("customTopicDiv");
+            if (customDiv) customDiv.style.display = show ? "block" : "none";
+          });
+        });
+      }
+
+      if (currentStep === 7) {
+        const input = document.getElementById("causeInput");
+        const badge = document.getElementById("savedBadge");
+        input.addEventListener("keydown", (e) => {
+          if (e.key === "Enter") {
+            e.preventDefault();
+            const val = input.value.trim();
+            if (!val) return;
+            userData.causes.push(val);
+            input.value = "";
+            renderCauses();
+            // feedback visual
+            if (badge) {
+              badge.style.display = "inline-block";
+              setTimeout(() => (badge.style.display = "none"), 900);
+            }
+          }
+        });
+        renderCauses();
+      }
+    }
+
+    function renderCauses() {
+      const list = document.getElementById("causeList");
+      if (!list) return;
+      list.innerHTML = userData.causes.map((c,i) => `
+        <div class="cause-item">
+          <span>${c}</span>
+          <button onclick="deleteCause(${i})">🗑</button>
+        </div>
+      `).join("");
+    }
+
+    // Exponer función de borrado para los botones
+    window.deleteCause = function(i) {
+      userData.causes.splice(i, 1);
+      // Si estamos en la vista final (paso 8), re-render completo.
+      if (currentStep === 8) {
+        renderStep();
+      } else {
+        renderCauses();
+      }
+    };
+
+    // Botón Siguiente
+    nextBtn.addEventListener("click", () => {
+      // Validaciones por paso
+      if (currentStep === 0) {
+        const val = (document.getElementById("problemInput")?.value || "").trim();
+        if (!val) { alert("Por favor, escribí tu problema antes de continuar."); return; }
+        userData.problem = val;
+      }
+
+      if (currentStep === 2) {
+        const sel = document.querySelector('input[name="topic"]:checked');
+        if (!sel) { alert("Seleccioná un tópico para continuar."); return; }
+        userData.topic = sel.value;
+        if (userData.topic === "Otro") {
+          const custom = (document.getElementById("customTopicInput")?.value || "").trim();
+          if (!custom) { alert("Especificá el tópico en 'Otro' para continuar."); return; }
+          userData.customTopic = custom;
+          // Guardamos en lista para investigar después
+          if (!userData.otherTopicsSaved.includes(custom)) {
+            userData.otherTopicsSaved.push(custom);
+          }
+        }
+      }
+
+      if (currentStep === 3) {
+        if (userData.topic === "De Salud") {
+          const med = document.querySelector('input[name="med"]:checked');
+          if (!med) { alert("Respondé la pregunta para continuar."); return; }
+          userData.knowledge = med.value === "Si"
+            ? "Si crees poseer el conocimiento para evaluar tu condición, prosigue al siguiente paso."
+            : "Lo más prudente en este caso será que acudas con un profesional de la Salud.";
+        } else if (userData.topic === "Otro") {
+          const otro = document.querySelector('input[name="otro"]:checked');
+          if (!otro) { alert("Respondé la pregunta para continuar."); return; }
+          userData.knowledge = otro.value === "Si"
+            ? "Intentemos analizar el problema para buscar su causa en el siguiente paso."
+            : "Será mejor que consultes con alguien con más experiencia antes de continuar.";
+        } else {
+          const qs = questions[userData.topic] || [];
+          // Validar que todas tengan respuesta
+          for (let i = 0; i < qs.length; i++) {
+            const ans = document.querySelector(`input[name="q${i}"]:checked`);
+            if (!ans) {
+              alert("Por favor, responde todas las preguntas antes de continuar.");
+              return;
+            }
+          }
+          let score = 0;
+          for (let i = 0; i < qs.length; i++) {
+            const ans = document.querySelector(`input[name="q${i}"]:checked`);
+            if (ans && ans.value === qs[i].a) score++;
+          }
+          userData.score = score;
+          if (score < 5) {
+            userData.knowledge = "Parece que necesitas más conocimiento en esta área para resolver el problema; te sugerimos investigar o consultar a una persona idónea y luego volver a utilizar este programa.";
+          } else if (score < 9) {
+            userData.knowledge = "Pareces conocer sobre este tema; te invitamos a investigar un poco sobre la situación que te pasó y luego seguir con el próximo paso para determinar las causas.";
+          } else {
+            userData.knowledge = "Se ve que estás bien instruido sobre este tópico. Prosigue al siguiente paso.";
+          }
+        }
+      }
+
+      if (currentStep === 5) {
+        const val = (document.getElementById("problemEdit")?.value || "").trim();
+        if (val) userData.problem = val;
+      }
+
+      // Avance / Final
+      if (currentStep < steps.length - 1) {
+        currentStep++;
+        // Ajuste de título dinámico con el nombre del tópico donde corresponda
+        if (currentStep === 3 && userData.topic && userData.topic !== "De Salud" && userData.topic !== "Otro") {
+          steps[3].title = `Vamos a evaluar tu conocimiento sobre "${userData.topic}" con unas preguntas rápidas`;
+        } else {
+          steps[3].title = "Vamos a evaluar tu conocimiento"; // reset por si vuelve atrás
+        }
+        renderStep();
+        // scrollear arriba de la caja para que siempre se vea el principio del paso
+        document.querySelector('.container')?.scrollTo({ top: 0, behavior: 'smooth' });
+      } else {
+        alert("¡Proceso completado!");
+      }
+    });
+
+    // Botón Atrás
+    prevBtn.addEventListener("click", () => {
+      if (currentStep > 0) {
+        currentStep--;
+        renderStep();
+        document.querySelector('.container')?.scrollTo({ top: 0, behavior: 'smooth' });
+      }
+    });
+
+    // Primer render
+    renderStep();
+  </script>
+</body>
+</html>
